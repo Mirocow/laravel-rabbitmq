@@ -22,7 +22,7 @@ class BaseConsumerCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'rabbitmq:consume {consumer} {--time=60} {--messages=100} {--memory=64}';
+    protected $signature = 'rabbitmq:consume {consumer} {--time=0} {--messages=0} {--memory=64}';
 
     /**
      * The console command description.

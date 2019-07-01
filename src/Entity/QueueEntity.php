@@ -249,7 +249,7 @@ class QueueEntity implements PublisherInterface, ConsumerInterface, AMQPEntityIn
         $this->setupConsumer($messages, $seconds, $maxMemory);
         while (false === $this->shouldStopConsuming()) {
             try {
-                $this->getChannel()->wait(null, false, 1);
+                $this->getChannel()->wait(null, false, 0);
             } catch (AMQPTimeoutException $e) {
                 usleep(1000);
                 $this->getConnection()->reconnect();
@@ -274,34 +274,34 @@ class QueueEntity implements PublisherInterface, ConsumerInterface, AMQPEntityIn
      */
     protected function shouldStopConsuming(): bool
     {
-        if ((microtime(true) - $this->startTime) > $this->limitSecondsUptime) {
-            $this->logger->debug(
-                "Stopped consumer",
-                [
-                    'limit' => 'time_limit',
-                    'value' => sprintf("%.2f", microtime(true) - $this->startTime)
-                ]
-            );
-            return true;
-        }
-        if (memory_get_peak_usage(true) >= ($this->limitMemoryConsumption * 1048576)) {
-            $this->logger->debug(
-                "Stopped consumer",
-                [
-                    'limit' => 'memory_limit',
-                    'value' => (int)round(memory_get_peak_usage(true) / 1048576, 2)
-                ]
-            );
-            return true;
+        if($this->limitSecondsUptime) {
+            if ((microtime(true) - $this->startTime) > $this->limitSecondsUptime) {
+                $this->logger->debug("Stopped consumer", [
+                        'limit' => 'time_limit',
+                        'value' => sprintf("%.2f", microtime(true) - $this->startTime)
+                    ]);
+                return true;
+            }
         }
 
-        if ($this->getMessageProcessor()->getProcessedMessages() >= $this->limitMessageCount) {
-            $this->logger->debug(
-                "Stopped consumer",
-                ['limit' => 'message_count', 'value' => (int)$this->getMessageProcessor()->getProcessedMessages()]
-            );
-            return true;
+        if($this->limitMemoryConsumption) {
+            if (memory_get_peak_usage(true) >= ($this->limitMemoryConsumption * 1048576)) {
+                $this->logger->debug("Stopped consumer", [
+                        'limit' => 'memory_limit',
+                        'value' => (int)round(memory_get_peak_usage(true) / 1048576, 2)
+                    ]);
+                return true;
+            }
         }
+
+        if($this->limitMessageCount) {
+            if ($this->getMessageProcessor()->getProcessedMessages() >= $this->limitMessageCount) {
+                $this->logger->debug("Stopped consumer",
+                    ['limit' => 'message_count', 'value' => (int)$this->getMessageProcessor()->getProcessedMessages()]);
+                return true;
+            }
+        }
+
         return false;
     }
 

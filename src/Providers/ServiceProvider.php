@@ -1,7 +1,6 @@
 <?php
 namespace NeedleProject\LaravelRabbitMq\Providers;
 
-use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider as LaravelServiceProvider;
 use NeedleProject\LaravelRabbitMq\Builder\ContainerBuilder;
 use NeedleProject\LaravelRabbitMq\Command\BaseConsumerCommand;
@@ -14,6 +13,8 @@ use NeedleProject\LaravelRabbitMq\ConsumerInterface;
 use NeedleProject\LaravelRabbitMq\Container;
 use NeedleProject\LaravelRabbitMq\Exception\LaravelRabbitMqException;
 use NeedleProject\LaravelRabbitMq\PublisherInterface;
+use Laravel\Lumen\Application as LumenApplication;
+use Illuminate\Foundation\Application as LaravelApplication;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 
@@ -52,11 +53,15 @@ class ServiceProvider extends LaravelServiceProvider
      */
     private function publishConfig()
     {
-        $this->publishes([
-            realpath(
-                dirname(__FILE__)
-            ) . '/../../config/laravel_rabbitmq.php' => config_path('laravel_rabbitmq.php'),
-        ]);
+        $source = realpath(__DIR__.'/../../config/laravel_rabbitmq.php');
+
+        if ($this->app instanceof LaravelApplication) {
+            $this->publishes([$source => config_path('laravel_rabbitmq.php')]);
+        } elseif ($this->app instanceof LumenApplication) {
+            $this->app->configure('laravel_rabbitmq');
+        }
+
+        $this->mergeConfigFrom($source, 'laravel_rabbitmq');
     }
 
     /**
@@ -88,7 +93,7 @@ class ServiceProvider extends LaravelServiceProvider
     private function registerPublishers()
     {
         // Get "tagged" like Publisher
-        $this->app->singleton(PublisherInterface::class, function (Application $application, $arguments) {
+        $this->app->singleton(PublisherInterface::class, function ($application, $arguments) {
             /** @var Container $container */
             $container = $application->make(Container::class);
             if (empty($arguments)) {
@@ -105,7 +110,7 @@ class ServiceProvider extends LaravelServiceProvider
     private function registerConsumers()
     {
         // Get "tagged" like Consumers
-        $this->app->singleton(ConsumerInterface::class, function (Application $application, $arguments) {
+        $this->app->singleton(ConsumerInterface::class, function ($application, $arguments) {
             /** @var Container $container */
             $container = $application->make(Container::class);
             if (empty($arguments)) {
